@@ -23,12 +23,22 @@ Storage.prototype.delete = function(id) {
 };
 
 Storage.prototype.edit = function(id, name) {
-  for (var i = 0; i < this.items.length; i++) {
-      if(this.items[i].id == id) {
-          this.items[i].name = name;
-          return true;
-      }
-  }
+    for (var i = 0; i < this.items.length; i++) {
+        var edited = false;
+        if(this.items[i].id == id) {
+            this.items[i].name = name;
+            edited = true;
+            return this.items[i];
+        }
+        if (edited) {
+            break;
+        }
+        else if(i == this.items.length - 1){
+            var item = {name: name, id: id};
+            this.items.push(item);
+            return item;
+        }
+    }
 };
 var storage = new Storage();
 storage.add('Broad beans');
@@ -68,18 +78,23 @@ app.delete('/items/:id', jsonParser, function(request, response) {
 app.put('/items/:id', jsonParser, function(request, response) {
     if (!request.body) {
         return response.sendStatus(400);
+    } else if (request.params.id != request.body.id) {
+        return response.status(304).send({error: 'Edit request failed. ID in the request parameter and body doesn\'t match.'});
     }
-    var edit = false;
-    if (request.params.id == request.body.id) {
-        edit = storage.edit(request.params.id, request.body.name);
-    }
-    if (edit) {
-        response.status(200);
+    
+    var item = null;
+    item = storage.edit(request.body.id, request.body.name);
+
+    if (item) {
+        response.status(200).json(item);
     }
     else {
-        var error = 'Edit request failed. Request consists bad body or missing id.';
-        response.json(error);
+        response.status(304).send({error: 'Edit request failed. Request consists bad body or missing id.'});
     }
+    
     
 });
 app.listen(process.env.PORT, process.env.IP);
+
+exports.app = app;
+exports.storage = storage;
